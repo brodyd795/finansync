@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -59,7 +60,21 @@ func fetchEmails() {
 
 	for _, msg := range mssgs {
 		fmt.Println(msg.Id)
+		fetchEmail(msg.Id)
 	}
+}
+
+func fetchEmail(id string) {
+	response, err := gmailService.Users.Messages.Get("me", id).Format("RAW").Do()
+
+	if err != nil {
+		log.Fatal("error fetching message", err)
+	}
+
+	decoded, err := base64.URLEncoding.DecodeString(response.Raw)
+
+	stringified := string(decoded[:])
+	fmt.Println(stringified)
 }
 
 func main() {
