@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -54,18 +55,26 @@ func fetchEmails() {
 		log.Fatal("error getting messages \n", err)
 	}
 	mssgs := response.Messages
-
 	fmt.Println(len(mssgs))
-	fmt.Println(mssgs)
+	fullMessage := fetchEmail(mssgs[0].Id)
 
-	for _, msg := range mssgs {
-		fmt.Println(msg.Id)
-		fetchEmail(msg.Id)
-	}
+	re := regexp.MustCompile(`Your transaction of \$.+?\.`)
+	match := re.FindString(fullMessage) // why does this line print out the fullMessage?
+	fmt.Println("match", match)
+
+	// for _, msg := range mssgs {
+	// 	fmt.Println(msg.Id)
+	// 	fetchEmail(mssgs[0].Id)
+	// }
 }
 
-func fetchEmail(id string) {
+func fetchEmail(id string) string {
 	response, err := gmailService.Users.Messages.Get("me", id).Format("RAW").Do()
+
+	modifyRequest := gmail.ModifyMessageRequest{
+		RemoveLabelIds: []string{"UNREAD"},
+	}
+	gmailService.Users.Messages.Modify("me", id, &modifyRequest)
 
 	if err != nil {
 		log.Fatal("error fetching message", err)
@@ -75,6 +84,8 @@ func fetchEmail(id string) {
 
 	stringified := string(decoded[:])
 	fmt.Println(stringified)
+
+	return stringified
 }
 
 func main() {
