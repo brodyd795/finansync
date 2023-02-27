@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/gmail/v1"
@@ -45,6 +46,27 @@ func initGmailService() {
 	}
 }
 
+func fetchEmails() {
+	response, err := gmailService.Users.Messages.List("me").Q("label:UNREAD").Do()
+
+	if err != nil {
+		log.Fatal("error getting messages \n", err)
+	}
+	mssgs := response.Messages
+
+	fmt.Println(len(mssgs))
+	fmt.Println(mssgs)
+
+	for _, msg := range mssgs {
+		fmt.Println(msg.Id)
+	}
+}
+
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("err getting env", err)
+	}
 	initGmailService()
+	fetchEmails()
 }
