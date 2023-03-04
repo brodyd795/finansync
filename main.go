@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -48,44 +47,54 @@ func initGmailService() {
 	}
 }
 
-func fetchEmails() {
-	response, err := gmailService.Users.Messages.List("me").Q("label:UNREAD").Do()
-
-	if err != nil {
-		log.Fatal("error getting messages \n", err)
-	}
-	mssgs := response.Messages
-	fmt.Println(len(mssgs))
-	fullMessage := fetchEmail(mssgs[0].Id)
-
-	re := regexp.MustCompile(`Your transaction of \$.+?\.`)
-	match := re.FindString(fullMessage) // why does this line print out the fullMessage?
-	fmt.Println("match", match)
-
-	// for _, msg := range mssgs {
-	// 	fmt.Println(msg.Id)
-	// 	fetchEmail(mssgs[0].Id)
-	// }
-}
-
 func fetchEmail(id string) string {
-	response, err := gmailService.Users.Messages.Get("me", id).Format("RAW").Do()
+	// seems like the default format is FULL – https://developers.google.com/gmail/api/reference/rest/v1/Format
+	// seems like I have to call it with FULL to get the headers,
+	// and call it again with RAW to get the payload 🤷‍♂️
+	rawResponse, err := gmailService.Users.Messages.Get("me", id).Format("RAW").Do()
+	fullResponse, err := gmailService.Users.Messages.Get("me", id).Format("FULL").Do()
 
-	modifyRequest := gmail.ModifyMessageRequest{
-		RemoveLabelIds: []string{"UNREAD"},
-	}
-	gmailService.Users.Messages.Modify("me", id, &modifyRequest)
+	// modifyRequest := gmail.ModifyMessageRequest{
+	// 	RemoveLabelIds: []string{"UNREAD"},
+	// }
+	// gmailService.Users.Messages.Modify("me", id, &modifyRequest)
 
 	if err != nil {
 		log.Fatal("error fetching message", err)
 	}
 
-	decoded, err := base64.URLEncoding.DecodeString(response.Raw)
+	for _, header := range fullResponse.Payload.Headers {
+		if header.Name == "From" {
+			fmt.Println(header.Value)
+		}
+	}
+	decoded, err := base64.URLEncoding.DecodeString(rawResponse.Raw)
 
 	stringified := string(decoded[:])
-	fmt.Println(stringified)
+	// fmt.Println(stringified)
 
 	return stringified
+}
+
+func fetchEmails() {
+	emailsResponse, err := gmailService.Users.Messages.List("me").Q("label:UNREAD").Do()
+
+	if err != nil {
+		log.Fatal("error getting messages \n", err)
+	}
+	emails := emailsResponse.Messages
+
+	// fullMessage := fetchEmail(emails[0].Id)
+	// fmt.Println("fullMessage", fullMessage)
+
+	// re := regexp.MustCompile(`Your transaction of \$.+?\.`)
+	// match := re.FindString(fullMessage) // why does this line print out the fullMessage?
+	// fmt.Println("match", match)
+
+	// for _, msg := range emails {
+		// fmt.Println(msg.Id)
+		fetchEmail(emails[0].Id)
+	// }
 }
 
 func main() {
